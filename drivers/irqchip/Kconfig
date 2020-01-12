@@ -499,4 +499,13 @@ config SIFIVE_PLIC
 
 	   If you don't know what to do here, say Y.
 
+config LOONGSON_IOINTC
+	bool "Loongson I/O Interrupt Controller"
+	depends on MACH_LOONGSON64
+	default y
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+	help
+	  Support for the Loongson I/O Interrupt Controller.
+
 endmenu
