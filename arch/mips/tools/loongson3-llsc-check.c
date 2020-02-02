@@ -138,6 +138,12 @@ static bool is_branch(uint32_t insn, int *off)
 	}
 }
 
+#define REPORT_OK		0x0
+#define REPORT_LL		0x1
+#define REPORT_BRANCH_TARGET	0x2
+
+static int err_report = REPORT_OK;
+
 static int check_ll(uint64_t pc, uint32_t *code, size_t sz)
 {
 	ssize_t i, max, sc_pos;
@@ -149,8 +155,8 @@ static int check_ll(uint64_t pc, uint32_t *code, size_t sz)
 	 * execute after the LL & cause erroneous results.
 	 */
 	if (!is_sync(le32toh(code[-1]))) {
+		err_report |= REPORT_LL;
 		fprintf(stderr, "%" PRIx64 ": LL not preceded by sync\n", pc);
-		return -EINVAL;
 	}
 
 	/* Find the matching SC instruction */
@@ -185,9 +191,9 @@ static int check_ll(uint64_t pc, uint32_t *code, size_t sz)
 			continue;
 
 		/* ...but if not, we have a problem */
+		err_report |= REPORT_BRANCH_TARGET;
 		fprintf(stderr, "%" PRIx64 ": Branch target not a sync\n",
 			pc + (i * 4));
-		return -EINVAL;
 	}
 
 	return 0;
@@ -296,6 +302,13 @@ int main(int argc, char *argv[])
 		if (err)
 			goto out_munmap;
 	}
+
+	if (err_report & REPORT_LL)
+		fprintf(stderr, "Notice: there are LLs not preceded by
+				syncs, please confirm manually.\n");
+	if (err_report & REPORT_BRANCH_TARGET)
+		fprintf(stderr, "Notice: there are branches within LL/SC blocks
+				not targeting syncs, please confirm manually.\n");
 
 	status = EXIT_SUCCESS;
 out_munmap:
